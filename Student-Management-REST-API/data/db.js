@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { prepareStudentData } = require('./students');
+const { seedStudents } = require('./students');
 
 const connectDB = async () => {
   const mongoURI = process.env.MONGODB_URI?.trim();
@@ -8,8 +8,8 @@ const connectDB = async () => {
   }
 
   await mongoose.connect(mongoURI);
-  await prepareStudentData();
-  console.log(`MongoDB connected: ${mongoose.connection.name}`);
+  await seedStudents();
+  console.log('MongoDB connected');
 };
 
 module.exports = connectDB;

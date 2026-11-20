@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const studentDefinition = new mongoose.Schema(
+const StudentSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
     name: { type: String, required: true, trim: true },
@@ -9,76 +9,80 @@ const studentDefinition = new mongoose.Schema(
   { timestamps: true, versionKey: false }
 );
 
-const sequenceDefinition = new mongoose.Schema({
+const CounterSchema = new mongoose.Schema({
   _id: { type: String, required: true },
   sequenceValue: { type: Number, default: 0 }
 }, { versionKey: false });
 
-const StudentRecord = mongoose.models.Student || mongoose.model('Student', studentDefinition);
-const IdSequence = mongoose.models.Counter || mongoose.model('Counter', sequenceDefinition);
+const Student = mongoose.models.Student || mongoose.model('Student', StudentSchema);
+const Counter = mongoose.models.Counter || mongoose.model('Counter', CounterSchema);
 
-const STUDENT_SEQUENCE_KEY = 'studentId';
-const STARTER_RECORDS = [
+const COUNTER_NAME = 'studentId';
+const sampleStudents = [
   { id: 1, name: 'Manas', course: 'BCA' },
   { id: 2, name: 'Naman', course: 'BTech' },
   { id: 3, name: 'Prithvee', course: 'BCA' }
 ];
 
-const findLatestStudentRecord = () =>
-  StudentRecord.findOne().sort({ id: -1 }).select('id');
+async function updateCounter() {
+  const lastStudent = await Student.findOne().sort({ id: -1 });
+  if (!lastStudent) return;
 
-const alignStudentSequence = async () => {
-  const latestRecord = await findLatestStudentRecord();
-  if (!latestRecord) return;
-
-  await IdSequence.findByIdAndUpdate(
-    STUDENT_SEQUENCE_KEY,
-    { $max: { sequenceValue: latestRecord.id } },
+  await Counter.findByIdAndUpdate(
+    COUNTER_NAME,
+    { $max: { sequenceValue: lastStudent.id } },
     { upsert: true, setDefaultsOnInsert: true }
   );
-};
+}
 
-const prepareStudentData = async () => {
-  const hasRecords = await StudentRecord.exists({});
-  if (!hasRecords) {
-    await StudentRecord.insertMany(STARTER_RECORDS);
+async function seedStudents() {
+  const count = await Student.countDocuments();
+  if (count === 0) {
+    await Student.insertMany(sampleStudents);
   }
 
-  await alignStudentSequence();
-};
+  await updateCounter();
+}
 
-const allocateStudentId = async () => {
-  const sequence = await IdSequence.findByIdAndUpdate(
-    STUDENT_SEQUENCE_KEY,
+async function getNewId() {
+  const counter = await Counter.findByIdAndUpdate(
+    COUNTER_NAME,
     { $inc: { sequenceValue: 1 } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
-  return sequence.sequenceValue;
-};
+  return counter.sequenceValue;
+}
 
-const listStudents = async () => StudentRecord.find().sort({ id: 1 });
+async function getAllStudents() {
+  return Student.find().sort({ id: 1 });
+}
 
-const findStudent = async (id) => StudentRecord.findOne({ id });
+async function getStudentById(id) {
+  return Student.findOne({ id });
+}
 
-const createStudent = async ({ name, course }) => {
-  const id = await allocateStudentId();
-  return StudentRecord.create({ id, name, course });
-};
+async function addStudent({ name, course }) {
+  const id = await getNewId();
+  return Student.create({ id, name, course });
+}
 
-const reviseStudent = async (id, { name, course }) =>
-  StudentRecord.findOneAndUpdate(
+async function updateStudent(id, { name, course }) {
+  return Student.findOneAndUpdate(
     { id },
     { $set: { name, course } },
     { new: true, runValidators: true }
   );
+}
 
-const removeStudent = async (id) => StudentRecord.findOneAndDelete({ id });
+async function deleteStudent(id) {
+  return Student.findOneAndDelete({ id });
+}
 
 module.exports = {
-  prepareStudentData,
-  listStudents,
-  findStudent,
-  createStudent,
-  reviseStudent,
-  removeStudent
+  seedStudents,
+  getAllStudents,
+  getStudentById,
+  addStudent,
+  updateStudent,
+  deleteStudent
 };

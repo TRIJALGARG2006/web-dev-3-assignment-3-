@@ -1,20 +1,12 @@
-const logger = (req, res, next) => {
-  const requestStartedAt = Date.now();
+function requestLogger(req, res, next) {
+  const started = Date.now();
 
   res.on('finish', () => {
-    const elapsedMilliseconds = Date.now() - requestStartedAt;
-    const requestLine = [
-      new Date().toISOString(),
-      req.method,
-      req.originalUrl,
-      res.statusCode,
-      `${elapsedMilliseconds}ms`
-    ].join(' ');
-
-    console.log(requestLine);
+    const timeTaken = Date.now() - started;
+    console.log(`${req.method} ${req.originalUrl} ${res.statusCode} (${timeTaken} ms)`);
   });
 
   next();
-};
+}
 
-module.exports = logger;
+module.exports = requestLogger;
